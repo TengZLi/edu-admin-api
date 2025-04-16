@@ -21,7 +21,7 @@ return new class extends Migration
             $table->smallInteger('status')->default(1)->comment('1: enable 0: disable');
             $table->timestamp('created_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
             $table->timestamp('updated_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
-            $table->index('username');
+            $table->unique('username');
             $table->index('teacher_id');
         });
     }
