@@ -129,8 +129,8 @@ class CourseController extends Controller
         $courses = $student->courses()
             ->with('teacher:id,name')
             ->orderBy('created_at', 'desc')
-            ->paginate($request->per_page ?? 15);
+           ;
 
-        return ApiResponse::success($courses);
+        return ApiResponse::success(paginate($courses));
     }
 }

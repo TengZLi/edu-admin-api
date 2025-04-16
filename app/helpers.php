@@ -9,7 +9,7 @@ if (!function_exists('lang')) {
     }
 }
 
-function paginate(Builder $builder, $column = ['*'])
+function paginate( $builder, $column = ['*'])
 {
         $page = request()->get('page', 1);
         $perPage = request()->get('per_page', 15);

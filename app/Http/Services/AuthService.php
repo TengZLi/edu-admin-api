@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
+    const USERNAME_REGEX = '/^[a-zA-Z0-9_]{2,20}$/';
+    const PASSWORD_REGEX = '/^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z0-9_]{6,20}$/';
     private Model $user;
     private string $userType;
     private string $username;

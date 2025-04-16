@@ -16,11 +16,11 @@ class ApiResponse
      * @param  mixed  $data
      * @return JsonResponse
      */
-    public static function success($data = null):JsonResponse
+    public static function success($data = null, $msg='success'):JsonResponse
     {
         return response()->json([
             'code' => self::SUCCESS_CODE,
-            'message' => 'success',
+            'message' => $msg,
             'data' => $data,
         ], 200);
     }
