@@ -23,6 +23,10 @@ class Handler extends ExceptionHandler
         'password_confirmation',
     ];
 
+    protected $dontReport = [
+        AuthenticationException::class,
+        ApiException::class
+    ];
     /**
      * Register the exception handling callbacks for the application.
      */
@@ -39,13 +43,16 @@ class Handler extends ExceptionHandler
             }
             if ($request->is('api/*')) {
                 if($e instanceof ApiException){
-                    return ApiResponse::error($e->getMessage(), $e->getCode());
+                    return ApiResponse::error($e->getMessage(), ApiResponse::ERROR_CODE);
                 }
 
                 if ($e instanceof AuthenticationException) {
                     return ApiResponse::error(lang('未登录'), ApiResponse::UNAUTHORIZED_CODE);
                 }
-//                return ApiResponse::error('Internal Server Error', ApiResponse::SERVER_ERROR_CODE);
+
+                if(!env('APP_DEBUG')){
+                    return ApiResponse::error('Internal Server Error', ApiResponse::SERVER_ERROR_CODE);
+                }
             }
         });
 
