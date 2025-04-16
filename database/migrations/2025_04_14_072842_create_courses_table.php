@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->integerIncrements('id');
             $table->string('name', 255)->default('')->nullable(false);
-            $table->smallInteger('year_month' )->default(0)->nullable(false); // 格式 YYYY-MM
+            $table->integer('year_month' )->default(0)->nullable(false); // 格式 YYYY-MM
             $table->decimal('fee', 10, 2)->default(0)->nullable(false);
             $table->integer('teacher_id')->default(0)->nullable(false);
             $table->timestamp('created_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
