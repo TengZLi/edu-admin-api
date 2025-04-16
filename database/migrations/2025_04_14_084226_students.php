@@ -11,15 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('courses', function (Blueprint $table) {
+        Schema::create('students', function (Blueprint $table) {
             $table->integerIncrements('id');
             $table->string('username', 20)->default('')->nullable(false);
             $table->string('password', 64)->default('')->nullable(true);
+            $table->string('name', 20)->default('')->nullable();
             $table->integer('teacher_id')->default(0)->nullable(false);
+            $table->string('remember_token', 100)->nullable(true);
+            $table->smallInteger('status')->default(1)->comment('1: enable 0: disable');
             $table->timestamp('created_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
             $table->timestamp('updated_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
-            $table->timestamp('deleted_at')->nullable(true);
-
             $table->index('username');
             $table->index('teacher_id');
         });

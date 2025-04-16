@@ -21,7 +21,7 @@ class CreateInvoicesTable extends Migration
             $table->integer('student_id')->default(0);
             $table->integer('teacher_id')->default(0);
             $table->decimal('amount', 10, 2)->default(0);
-            $table->tinyInteger('status')->default(0);
+            $table->tinyInteger('status')->comment('0: pending  1: success  2: failed')->default(0);
             $table->timestamp('sent_at')->nullable();
             $table->timestamp('created_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
             $table->timestamp('updated_at')->default(\Illuminate\Support\Facades\DB::raw('CURRENT_TIMESTAMP'))->nullable(false);
