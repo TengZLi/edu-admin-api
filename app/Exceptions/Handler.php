@@ -2,8 +2,10 @@
 
 namespace App\Exceptions;
 
+use App\Http\ApiResponse;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
-use Throwable;
+use Illuminate\Http\Request;
+use Psr\Container\NotFoundExceptionInterface;
 
 class Handler extends ExceptionHandler
 {
@@ -23,8 +25,26 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
+        $this->renderable(function (Throwable $e, Request $request) {
+            if($e instanceof NotFoundExceptionInterface){
+                return response()->json([
+                    'code' => ApiResponse::ERROR_CODE,
+                    'message' => 'Record not found.'
+                ], 404);
+            }
+            if ($request->is('api/*')) {
+                if($e instanceof ApiException){
+                    return ApiResponse::error($e->getMessage(), $e->getCode());
+                }
+                return ApiResponse::error('Internal Server Error', ApiResponse::SERVER_ERROR_CODE);
+            }
+        });
+
         $this->reportable(function (Throwable $e) {
-            //
+
         });
     }
+
+
+
 }
