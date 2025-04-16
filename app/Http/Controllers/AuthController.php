@@ -79,4 +79,45 @@ class AuthController extends Controller
             "status" => $user->status,
         ]);
     }
+
+    /**
+     * 更新用户名和密码
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            $request->validate([
+                'username' => ['required', 'not_regex:'.AuthService::USERNAME_REGEX,
+                                'unique:'. ($request->user() instanceof Teacher? 'teachers' :'students'). ',username,'. $request->user()->id],
+                'name' => 'required',
+                'current_password' => 'required_with:password',
+                'password' => ['required','confirmed','not_regex:'.AuthService::PASSWORD_REGEX] ,
+                'password_confirmation' => 'required_with:password'
+            ]);
+        } catch (\Throwable $throwable) {
+            return ApiResponse::error($throwable->getMessage());
+        }
+
+        $user = $request->user();
+
+        // 验证当前密码
+        if ($request->has('password')) {
+            if (!Hash::check($request->current_password, $user->password)) {
+                return ApiResponse::error(lang('当前密码不正确'));
+            }
+            $user->password = Hash::make($request->password);
+        }
+
+        // 更新用户名
+        $user->username = $request->username;
+        $user->name = $request->name;
+        $user->save();
+
+        return ApiResponse::success([
+            'message' => lang('个人信息更新成功')
+        ]);
+    }
 }
