@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use App\Http\ApiResponse;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Psr\Container\NotFoundExceptionInterface;
 
 class Handler extends ExceptionHandler
@@ -25,7 +26,7 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
-        $this->renderable(function (Throwable $e, Request $request) {
+        $this->renderable(function (\Throwable $e, Request $request) {
             if($e instanceof NotFoundExceptionInterface){
                 return response()->json([
                     'code' => ApiResponse::ERROR_CODE,
@@ -40,9 +41,7 @@ class Handler extends ExceptionHandler
             }
         });
 
-        $this->reportable(function (Throwable $e) {
 
-        });
     }
 
 
