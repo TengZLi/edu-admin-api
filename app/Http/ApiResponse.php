@@ -8,6 +8,7 @@ class ApiResponse
 {
     const SUCCESS_CODE = 0;
     const ERROR_CODE = 1;
+    const UNAUTHORIZED_CODE = 401;
     const SERVER_ERROR_CODE = 500;
     /**
      * Return a success response.

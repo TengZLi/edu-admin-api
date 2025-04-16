@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Spatie\FlareClient\Api;
 
 class AuthController extends Controller
 {
@@ -38,9 +39,9 @@ class AuthController extends Controller
             $client_id = config('passport.passport_student_password_client.id');
             $client_secret = config('passport.passport_student_password_client.secret');
         }
-
-        $oauthServerDomain = env('PASSPORT_SERVER_DOMAIN', 'http://127.0.0.1');
-        $tokenInfo =Http::asForm()->post($oauthServerDomain.'/1oauth/token', [
+        //获取请求的域名
+        $oauthServerDomain = env('PASSPORT_SERVER_DOMAIN', $request->getSchemeAndHttpHost());
+        $tokenInfo =Http::asForm()->post($oauthServerDomain.'/oauth/token', [
             'grant_type' => 'password',
             'client_id' => $client_id,
             'client_secret' => $client_secret,
@@ -59,16 +60,6 @@ class AuthController extends Controller
             'expires_in' => $tokenInfo['expires_in'],
             'token_type' => $tokenInfo['token_type'],
         ]);
-        // 生成Passport访问令牌
-//        $authToken = $user->createToken('auth_token');
-//        $tokenType = 'Bearer';
-//        return ApiResponse::success([
-//            'access_token' => "{$tokenType} {$authToken->accessToken}",
-//            'expires_at' => $authToken->token->expires_at->toDateTimeString(),
-//            'token_type' => $tokenType,
-//            'user_type' => $userType,
-//            'user' => $user,
-//        ]);
 
     }
 
@@ -80,6 +71,12 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        return ApiResponse::success([
+            "id" => $user->id,
+            "username" => $user->username,
+            "name" => $user->name,
+            "status" => $user->status,
+        ]);
     }
 }

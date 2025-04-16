@@ -3,6 +3,8 @@
 namespace App\Exceptions;
 
 use App\Http\ApiResponse;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,6 +28,8 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
+
+
         $this->renderable(function (\Throwable $e, Request $request) {
             if($e instanceof NotFoundExceptionInterface){
                 return response()->json([
@@ -37,7 +41,11 @@ class Handler extends ExceptionHandler
                 if($e instanceof ApiException){
                     return ApiResponse::error($e->getMessage(), $e->getCode());
                 }
-                return ApiResponse::error('Internal Server Error', ApiResponse::SERVER_ERROR_CODE);
+
+                if ($e instanceof AuthenticationException) {
+                    return ApiResponse::error(lang('未登录'), ApiResponse::UNAUTHORIZED_CODE);
+                }
+//                return ApiResponse::error('Internal Server Error', ApiResponse::SERVER_ERROR_CODE);
             }
         });
 
