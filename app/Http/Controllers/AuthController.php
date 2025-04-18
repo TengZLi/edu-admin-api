@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Spatie\FlareClient\Api;
+use Gregwar\Captcha\CaptchaBuilder;
 
 class AuthController extends Controller
 {
@@ -25,12 +27,13 @@ class AuthController extends Controller
             $request->validate([
                 'username' => 'required|alpha_dash',
                 'password' => 'required',
-                'user_type' => 'required|in:teacher,student'
+                'user_type' => 'required|in:teacher,student',
+
             ]);
+
         }catch (\Throwable $throwable){
             return ApiResponse::error($throwable->getMessage());
         }
-
         $userType = $request->user_type;
         if ($userType === 'teacher') {
             $client_id = config('passport.passport_teacher_password_client.id');
@@ -54,7 +57,17 @@ class AuthController extends Controller
             return ApiResponse::error(lang('用户名或密码错误，或者被禁用登录'));
         }
 
+        if ($userType === 'teacher') {
+            $model = Teacher::query();
+        } else {
+            $model = Student::query();
+        }
+        $user = $model->where('username', $request->username)
+        ->first(['id','name','username','status']);
         return ApiResponse::success([
+            'username' => $user->username,
+            'name' => $user->name,
+            'status' => $user->status,
             'user_type' => $request->user_type,
             'access_token' => $tokenInfo['token_type'].' '.$tokenInfo['access_token'],
             'expires_in' => $tokenInfo['expires_in'],
@@ -73,7 +86,6 @@ class AuthController extends Controller
     {
         $user = $request->user();
         return ApiResponse::success([
-            "id" => $user->id,
             "username" => $user->username,
             "name" => $user->name,
             "status" => $user->status,
@@ -90,13 +102,16 @@ class AuthController extends Controller
     {
         try {
             $request->validate([
-                'username' => ['required', 'not_regex:'.AuthService::USERNAME_REGEX,
+                'username' => ['required',
+                 'regex:'.AuthService::USERNAME_REGEX,
                                 'unique:'. ($request->user() instanceof Teacher? 'teachers' :'students'). ',username,'. $request->user()->id],
                 'name' => 'required',
                 'current_password' => 'required_with:password',
-                'password' => ['required','confirmed','not_regex:'.AuthService::PASSWORD_REGEX] ,
-                'password_confirmation' => 'required_with:password'
-            ]);
+                'password' => ['regex:'.AuthService::PASSWORD_REGEX] ,
+            ],['username.regex'=>lang('用户名必须为2到20位数字/英文或下划线'),
+                'username.unique'=>lang('用户名已存在'),
+                'password.regex'=>lang('密码为6-20位数字/英文或下划线，且至少包含一个字母和一个数字'),
+                'current_password.required_with'=>lang('当前密码不能为空')]);
         } catch (\Throwable $throwable) {
             return ApiResponse::error($throwable->getMessage());
         }
@@ -104,7 +119,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         // 验证当前密码
-        if ($request->has('password')) {
+        if ($request->has('password') && !empty($request->password)) {
             if (!Hash::check($request->current_password, $user->password)) {
                 return ApiResponse::error(lang('当前密码不正确'));
             }
@@ -116,8 +131,6 @@ class AuthController extends Controller
         $user->name = $request->name;
         $user->save();
 
-        return ApiResponse::success([
-            'message' => lang('个人信息更新成功')
-        ]);
+        return ApiResponse::success();
     }
 }
