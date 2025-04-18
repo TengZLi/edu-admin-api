@@ -26,7 +26,7 @@ Route::post('/payment/webhook', [OmisePaymentController::class, 'handleWebhook']
 Route::get('/payment/callback', [OmisePaymentController::class, 'paymentCallback'])->name('payment.callback');
 
 // 教师路由组
-Route::middleware('auth:teacher')->prefix('teacher')->group(function () {
+Route::middleware(['auth:teacher',\App\Http\Middleware\CheckUserStatus::class])->prefix('teacher')->group(function () {
     // 用户信息
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -51,7 +51,7 @@ Route::middleware('auth:teacher')->prefix('teacher')->group(function () {
 });
 
 // 学生路由组
-Route::middleware('auth:student')->prefix('student')->group(function () {
+Route::middleware(['auth:student',\App\Http\Middleware\CheckUserStatus::class])->prefix('student')->group(function () {
     // Omise支付
     Route::post('/invoice/{id}/pay-with-omise', [OmisePaymentController::class, 'payWithOmise']);
     Route::get('/user', [AuthController::class, 'user']);
