@@ -2,6 +2,7 @@
 
 namespace App\Http\Services;
 
+use App\Exceptions\ApiException;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Http;
@@ -45,8 +46,7 @@ class OmisePaymentService
      */
     public function createAlipayPlusMpmPayment(Invoice $invoice)
     {
-        try {
-
+            $domain = request()->getHost();
             // 准备支付数据
             $paymentData = [
                 'amount' => $this->convertToSatang($invoice->amount), // 转换为最小货币单位（泰铢转为satang）
@@ -61,51 +61,33 @@ class OmisePaymentService
                     'course_id' => $invoice->course_id
                 ],
 //                'return_uri' => route('payment.callback')
-                'return_uri' => 'https://local.poper.edu.com/api/payment/callback',
+                'return_uri' => "https://{$domain}/api/payment/callback",
             ];
 
             // 发送请求到Omise API创建支付
             $response = Http::withBasicAuth($this->secretKey, '')
                 ->post("{$this->apiUrl}/charges", $paymentData);
-            Log::channel('pay')->info('【omise创建支付】', $response->json());
+            Log::channel('pay')->info('【omise创建支付】',['invoice_id'=>$invoice->id,'response'=>$response->json()]);
             // 检查响应
             if ($response->successful()) {
                 $paymentData = $response->json();
 
-                // 创建本地支付记录
-                $payment = Payment::create([
-                    'invoice_id' => $invoice->id,
-                    'transaction_id' => $paymentData['id'], // Omise交易ID
-                    'amount' => $invoice->amount,
-                    'status' => Payment::STATUS_PENDING,
-                ]);
-
-
+                $invoice->transaction_id = $paymentData['id'];
+                $invoice->save();
                 // 返回支付信息
                 return [
-                    'success' => true,
-                    'payment_id' => $payment->id,
                     'transaction_id' => $paymentData['id'],
                     'qr_code' => $paymentData['source']['scannable_code']['image']['download_uri'] ?? null,
                     'payment_url' => $paymentData['authorize_uri'] ?? null,
                 ];
             } else {
-                Log::error('Omise支付创建失败', [
+                Log::channel('pay')->error('【omise创建支付失败】', [
                     'invoice_id' => $invoice->id,
                     'error' => $response->json(),
                 ]);
 
-                throw new \Exception('支付创建失败：' . ($response->json()['message'] ?? '未知错误'));
+                throw new ApiException('支付创建失败：' . ($response->json()['message'] ?? '未知错误'));
             }
-        } catch (\Exception $e) {
-            Log::error('Omise支付处理异常', [
-                'invoice_id' => $invoice->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
-        }
     }
 
     /**
@@ -132,16 +114,12 @@ class OmisePaymentService
                 return $this->processSuccessfulPayment($data);
             }
 
-            // 处理支付失败事件
-            if ($event === 'charge.failed') {
-                return $this->processFailedPayment($data);
-            }
-
             // 其他事件暂不处理
             Log::info('收到未处理的Omise Webhook事件', ['event' => $event]);
             return true;
         } catch (\Exception $e) {
             Log::error('处理Omise Webhook异常', [
+                'params' => $request->all(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -173,89 +151,15 @@ class OmisePaymentService
             return false;
         }
 
-        DB::beginTransaction();
-        try {
-            // 更新支付状态
-            $payment->status = Payment::STATUS_PAID;
-            $payment->paid_at = now();
-            $payment->save();
+        // 更新账单状态
+        $invoice = $payment->invoice;
+        $invoice->status = Invoice::STATUS_PAID_SUCCESS;
+        $invoice->save();
 
-            // 更新账单状态
-            $invoice = $payment->invoice;
-            $invoice->status = Invoice::STATUS_PAID_SUCCESS;
-            $invoice->save();
+        return true;
 
-            DB::commit();
-
-            Log::info('Omise支付成功处理完成', [
-                'transaction_id' => $transactionId,
-                'invoice_id' => $invoice->id,
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('处理Omise支付成功事件异常', [
-                'transaction_id' => $transactionId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
     }
 
-    /**
-     * 处理支付失败事件
-     *
-     * @param array $data 事件数据
-     * @return bool 处理结果
-     */
-    protected function processFailedPayment(array $data)
-    {
-        $transactionId = $data['id'] ?? null;
-
-        if (!$transactionId) {
-            Log::error('Omise支付失败事件缺少交易ID');
-            return false;
-        }
-
-        // 查找对应的支付记录
-        $payment = Payment::where('transaction_id', $transactionId)->first();
-
-        if (!$payment) {
-            Log::error('找不到对应的支付记录', ['transaction_id' => $transactionId]);
-            return false;
-        }
-
-        DB::beginTransaction();
-        try {
-            // 更新支付状态为失败
-            $payment->status = Payment::STATUS_PENDING; // 重置为待处理状态，允许重新支付
-            $payment->save();
-
-            // 更新账单状态
-            $invoice = $payment->invoice;
-            $invoice->status = Invoice::STATUS_PAID_FAILD;
-            $invoice->save();
-
-            DB::commit();
-
-            Log::info('Omise支付失败处理完成', [
-                'transaction_id' => $transactionId,
-                'invoice_id' => $invoice->id,
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('处理Omise支付失败事件异常', [
-                'transaction_id' => $transactionId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
 
     /**
      * 验证Webhook签名

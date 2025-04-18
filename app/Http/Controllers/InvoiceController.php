@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ApiException;
 use App\Http\ApiResponse;
+use App\Http\Services\OmisePaymentService;
 use App\Http\Services\StudentService;
 use App\Models\Course;
 use App\Models\CourseStudent;
@@ -13,6 +14,7 @@ use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
@@ -49,7 +51,7 @@ class InvoiceController extends Controller
         // 验证学生是否在该课程中
         $studentExists =CourseStudent::where('course_id', $request->course_id)->where('student_id', $request->student_id)->exists();
         if (!$studentExists) {
-            return ApiResponse::error(lang('该学生不在此课程中'));
+            return ApiResponse::error(lang('请先添加学生到此课程中在创建账单'));
         }
         // 验证是否已经存在账单
         $invoiceExists = Invoice::where('course_id', $request->course_id)
@@ -158,7 +160,7 @@ class InvoiceController extends Controller
     public function pay(Request $request, $id)
     {
         try {
-            $student = Auth::guard('student')->id();
+            $student = Auth::guard('student')->user();
 
             $invoice = Invoice::where('id', $id)
                 ->where('student_id', $student->id)
@@ -169,31 +171,19 @@ class InvoiceController extends Controller
                 return ApiResponse::error('账单不存在或不可支付');
             }
 
-            DB::beginTransaction();
+            $omiseService = new OmisePaymentService();
+            //先写死一个支付
+            // 创建Omise AlipayPlus MPM支付
+            $paymentResult = $omiseService->createAlipayPlusMpmPayment($invoice);
 
-            // 创建支付记录
-            $payment = Payment::create([
-                'invoice_id' => $invoice->id,
-                'transaction_id' => Str::uuid()->toString(), // 生成唯一交易ID
-                'amount' => $invoice->amount,
-                'status' => Payment::STATUS_PAID,
-                'paid_at' => now(),
-                'created_at' => now(),
-            ]);
-
-            // 更新账单状态为已支付
-            $invoice->status = Invoice::STATUS_PAID;
-            $invoice->save();
-
-            DB::commit();
-
-            return ApiResponse::success([
-                'invoice' => $invoice,
-                'payment' => $payment
-            ]);
+            return ApiResponse::success($paymentResult);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return ApiResponse::error($e->getMessage());
+            Log::error('创建Omise支付失败', [
+                'invoice_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return ApiResponse::error(lang('支付失败，请稍后再试'));
         }
     }
+
 }
