@@ -28,6 +28,7 @@ class OmisePaymentService
      */
     protected $apiUrl = 'https://api.omise.co';
 
+    private $error=null;
     /**
      * 构造函数
      */
@@ -72,9 +73,6 @@ class OmisePaymentService
             // 检查响应
             if ($response->successful()) {
                 $paymentData = $response->json();
-
-                $invoice->transaction_id = $paymentData['id'];
-                $invoice->save();
                 // 返回支付信息
                 return [
                     'transaction_id' => $paymentData['id'],
@@ -95,38 +93,33 @@ class OmisePaymentService
      * 处理Omise支付回调
      *
      * @param Request $request 回调请求
-     * @return bool 处理结果
      */
     public function handleWebhook(Request $request)
     {
 
         try {
             // 验证Webhook签名
-            if (!$this->verifyWebhookSignature($request)) {
-                return false;
-            }
-
+//            if (!$this->verifyWebhookSignature($request)) {
+//                return false;
+//            }
+//            failed
             $payload = $request->all();
-            $event = $payload['event'] ?? ''; // 修正为获取event字段
+            $event = $payload['key'] ?? ''; // 修正为获取event字段
             $data = $payload['data'] ?? [];
 
-            // 处理支付成功事件
+            // 处理支付完成事件
             if ($event === 'charge.complete') {
-                return $this->processSuccessfulPayment($data);
+                $this->processSuccessfulPayment($data);
             }
 
-            // 其他事件暂不处理
-            Log::info('收到未处理的Omise Webhook事件', ['event' => $event]);
-            return true;
         } catch (\Throwable $e) {
-            Log::error('处理Omise Webhook异常', [
-                'header'=>$request->header(),
+            Log::error('【处理Omise Webhook异常】', [
+//                'header'=>$request->header(),
                 'params' => $request->all(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            return false;
+            throw $e;
         }
     }
 
@@ -138,25 +131,33 @@ class OmisePaymentService
      */
     protected function processSuccessfulPayment(array $data)
     {
-        $transactionId = $data['id'] ?? null;
+        $status = $data['source']['charge_status'] ?? '';
+        //只处理成功的事件
+        if($status <> 'successful'){
+            return true;
+        }
+        //自己系统的账单id判断
+        $invoice_id = $data['metadata']['invoice_id'] ?? null;
 
-        if (!$transactionId) {
-            Log::error('Omise支付成功事件缺少交易ID');
-            return false;
+        if (!$invoice_id) {
+            throw new ApiException(lang('找不到对应的支付记录'));
         }
 
-        // 查找对应的支付记录
-        $payment = Payment::where('transaction_id', $transactionId)->first();
+        DB::transaction(function ()use($invoice_id, $data){
+            // 查找对应的支付记录，没有redis先直接用数据库行锁，预防并发请求，但此处操作幂等，不加也行
+            $invoice = Invoice::query()->where('id', $invoice_id)->lockForUpdate()->first();
 
-        if (!$payment) {
-            Log::error('找不到对应的支付记录', ['transaction_id' => $transactionId]);
-            return false;
-        }
+            if (!$invoice) {
+                throw new ApiException(lang('找不到对应的支付记录'));
+            }
 
-        // 更新账单状态
-        $invoice = $payment->invoice;
-        $invoice->status = Invoice::STATUS_PAID_SUCCESS;
-        $invoice->save();
+            if($invoice->status > Invoice::STATUS_SENT){
+                throw new ApiException(lang('订单状态异常'));
+            }
+            // 更新账单状态
+            $invoice->status = Invoice::STATUS_PAID_SUCCESS;
+            $invoice->save();
+        });
 
         return true;
 

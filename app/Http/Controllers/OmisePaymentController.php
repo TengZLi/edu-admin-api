@@ -72,17 +72,9 @@ class OmisePaymentController extends Controller
     public function handleWebhook(Request $request)
     {
         try {
-            $result = $this->omiseService->handleWebhook($request);
-
-            if ($result) {
-                return response('Webhook processed successfully', 200);
-            } else {
-                return response('Webhook processing failed', 400);
-            }
-        } catch (\Exception $e) {
-            Log::error('处理Omise Webhook异常', [
-                'error' => $e->getMessage(),
-            ]);
+            $this->omiseService->handleWebhook($request);
+            return response('Webhook processed successfully');
+        } catch (\Throwable $e) {
             return response('Webhook processing error: ' . $e->getMessage(), 500);
         }
     }
@@ -95,22 +87,6 @@ class OmisePaymentController extends Controller
      */
     public function paymentCallback(Request $request)
     {
-        // 获取支付结果参数
-        $status = $request->query('status', 'failed');
-        $transactionId = $request->query('transaction_id', '');
-
-        // 记录回调信息
-        Log::info('Omise支付回调', [
-            'status' => $status,
-            'transaction_id' => $transactionId,
-            'params' => $request->all(),
-        ]);
-
-        // 重定向到前端支付结果页面
-        // 实际项目中应该重定向到前端的支付结果页面
-        return response()->json([
-            'status' => $status === 'successful' ? 'success' : 'failed',
-            'transaction_id' => $transactionId,
-        ]);
+        return response('支付成功，请关闭页面', 200);
     }
 }
