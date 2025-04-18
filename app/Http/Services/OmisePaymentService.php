@@ -99,6 +99,7 @@ class OmisePaymentService
      */
     public function handleWebhook(Request $request)
     {
+
         try {
             // 验证Webhook签名
             if (!$this->verifyWebhookSignature($request)) {
@@ -117,8 +118,9 @@ class OmisePaymentService
             // 其他事件暂不处理
             Log::info('收到未处理的Omise Webhook事件', ['event' => $event]);
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('处理Omise Webhook异常', [
+                'header'=>$request->header(),
                 'params' => $request->all(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
