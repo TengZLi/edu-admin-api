@@ -18,10 +18,9 @@ use App\Http\Controllers\StudentController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-
 // 公共路由
 Route::post('/auth/login', [AuthController::class, 'login']);
-
+// Route::get('/auth/captcha', [AuthController::class, 'captcha']);
 // Omise支付回调
 Route::post('/payment/webhook', [OmisePaymentController::class, 'handleWebhook']);
 Route::get('/payment/callback', [OmisePaymentController::class, 'paymentCallback'])->name('payment.callback');
@@ -36,6 +35,7 @@ Route::middleware('auth:teacher')->prefix('teacher')->group(function () {
     // 课程管理
     Route::prefix('course')->group(function () {
         Route::get('/', [CourseController::class, 'index']);
+        Route::get('/list', [CourseController::class, 'list']);
         Route::post('/', [CourseController::class, 'create']);
         Route::get('/{id}', [CourseController::class, 'show']);
         Route::put('/{id}', [CourseController::class, 'update']);
@@ -52,8 +52,6 @@ Route::middleware('auth:teacher')->prefix('teacher')->group(function () {
 
 // 学生路由组
 Route::middleware('auth:student')->prefix('student')->group(function () {
-    // 用户信息
-
     // Omise支付
     Route::post('/invoice/{id}/pay-with-omise', [OmisePaymentController::class, 'payWithOmise']);
     Route::get('/user', [AuthController::class, 'user']);
@@ -66,6 +64,6 @@ Route::middleware('auth:student')->prefix('student')->group(function () {
     // 我的账单
     Route::prefix('invoice')->group(function () {
         Route::get('/', [InvoiceController::class, 'studentInvoices']);
-        Route::post('/{id}/pay', [InvoiceController::class, 'pay']);
+        Route::post('/pay/{id}', [InvoiceController::class, 'pay']);
     });
 });

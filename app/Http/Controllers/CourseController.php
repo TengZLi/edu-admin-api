@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Http\ApiResponse;
 use App\Http\Services\CourseService;
 use App\Models\Course;
+use App\Models\CourseStudent;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Rules\YearMonthRule;
@@ -59,6 +60,20 @@ class CourseController extends Controller
         return ApiResponse::success($courses);
     }
 
+    public function list(Request $request)
+    {
+        $teacherId = Auth::guard(self::GUARD)->id();
+        $name = $request->get('name');
+        $where = [];
+        if ($name) {
+            $where[] = ['name', 'like', "%{$name}%"];
+        }
+        $courses = Course::query()->where('teacher_id', $teacherId)
+            ->select('id','name')
+            ->where($where)
+            ->orderBy('id', 'desc')->get();
+        return ApiResponse::success($courses);
+    }
     /**
      * 教师获取课程详情
      *
@@ -94,7 +109,7 @@ class CourseController extends Controller
             $request->validate([
 //                'name' => ['required','string','max:255'],
 //                'year_month'=> ['required','integer', new YearMonthRule()],
-                'fee' => ['required','numeric','min:0'],
+                // 'fee' => ['required','numeric','min:0'],
                 'student_ids' => ['array'],
                 'student_ids.*' => ['integer'],
             ]);
@@ -128,7 +143,7 @@ class CourseController extends Controller
 
         $courses = $student->courses()
             ->with('teacher:id,name')
-            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
            ;
 
         return ApiResponse::success(paginate($courses));
