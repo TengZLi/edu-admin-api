@@ -35,6 +35,7 @@ class OmisePaymentService
     {
         $this->secretKey = config('services.omise.secret_key');
         $this->publicKey = config('services.omise.public_key');
+        $this->webhookKey = config('services.omise.webhook_secret');
     }
 
     /**
@@ -101,12 +102,11 @@ class OmisePaymentService
         try {
             // 验证Webhook签名
             if (!$this->verifyWebhookSignature($request)) {
-                Log::warning('Omise Webhook签名验证失败');
                 return false;
             }
 
             $payload = $request->all();
-            $event = $payload['key'] ?? '';
+            $event = $payload['event'] ?? ''; // 修正为获取event字段
             $data = $payload['data'] ?? [];
 
             // 处理支付成功事件
@@ -171,13 +171,11 @@ class OmisePaymentService
     {
         // 获取Omise签名
         $signature = $request->header('Omise-Signature');
-
-        if (empty($signature)) {
+        $calculatedSignature = hash_hmac('sha256', $request->getContent(), $this->webhookKey);
+        if(!hash_equals($signature,$calculatedSignature)){
+            Log::warning('Omise Webhook签名验证失败',['signature'=>$signature,'calculated'=>$calculatedSignature,'params'=>$request->all()]);
             return false;
         }
-
-        // 实际项目中应该实现完整的签名验证逻辑
-        // 这里简化处理，仅检查签名是否存在
         return true;
     }
 
