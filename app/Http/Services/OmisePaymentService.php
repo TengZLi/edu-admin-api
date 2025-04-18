@@ -80,11 +80,6 @@ class OmisePaymentService
                     'payment_url' => $paymentData['authorize_uri'] ?? null,
                 ];
             } else {
-                Log::channel('pay')->error('【omise创建支付失败】', [
-                    'invoice_id' => $invoice->id,
-                    'error' => $response->json(),
-                ]);
-
                 throw new ApiException('支付创建失败：' . ($response->json()['message'] ?? '未知错误'));
             }
     }
@@ -143,6 +138,9 @@ class OmisePaymentService
             throw new ApiException(lang('找不到对应的支付记录'));
         }
 
+        //todo 到omise查询订单是否真实有效
+
+        //处理数据库逻辑
         DB::transaction(function ()use($invoice_id, $data){
             // 查找对应的支付记录，没有redis先直接用数据库行锁，预防并发请求，但此处操作幂等，不加也行
             $invoice = Invoice::query()->where('id', $invoice_id)->lockForUpdate()->first();
@@ -155,6 +153,7 @@ class OmisePaymentService
                 throw new ApiException(lang('订单状态异常'));
             }
             // 更新账单状态
+            $invoice->transaction_id = $data['id'];
             $invoice->status = Invoice::STATUS_PAID_SUCCESS;
             $invoice->save();
         });

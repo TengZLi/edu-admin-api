@@ -30,40 +30,6 @@ class OmisePaymentController extends Controller
     }
 
     /**
-     * 学生使用Omise支付账单
-     *
-     * @param Request $request
-     * @param int $id 账单ID
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function payWithOmise(Request $request, $id)
-    {
-        try {
-            $student = Auth::guard('student')->user();
-
-            $invoice = Invoice::where('id', $id)
-                ->where('student_id', $student->id)
-                ->where('status', Invoice::STATUS_SENT) // 只能支付已发送的账单
-                ->first();
-
-            if (!$invoice) {
-                return ApiResponse::error('账单不存在或不可支付');
-            }
-
-            // 创建Omise AlipayPlus MPM支付
-            $paymentResult = $this->omiseService->createAlipayPlusMpmPayment($invoice);
-
-            return ApiResponse::success($paymentResult);
-        } catch (\Exception $e) {
-            Log::error('创建Omise支付失败', [
-                'invoice_id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-            return ApiResponse::error($e->getMessage());
-        }
-    }
-
-    /**
      * 处理Omise支付回调
      *
      * @param Request $request
@@ -87,6 +53,6 @@ class OmisePaymentController extends Controller
      */
     public function paymentCallback(Request $request)
     {
-        return response('支付成功，请关闭页面', 200);
+        return response('支付已完成，请关闭页面', 200);
     }
 }

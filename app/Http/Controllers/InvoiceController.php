@@ -177,10 +177,11 @@ class InvoiceController extends Controller
             $paymentResult = $omiseService->createAlipayPlusMpmPayment($invoice);
 
             return ApiResponse::success($paymentResult);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('创建Omise支付失败', [
                 'invoice_id' => $id,
                 'error' => $e->getMessage(),
+                'stack'=> $e->getTraceAsString(),
             ]);
             return ApiResponse::error(lang('支付失败，请稍后再试'));
         }
