@@ -38,7 +38,7 @@ Route::middleware(['auth:teacher',\App\Http\Middleware\CheckUserStatus::class])-
         Route::get('/list', [CourseController::class, 'list']);
         Route::post('/', [CourseController::class, 'create']);
         Route::get('/{id}', [CourseController::class, 'show']);
-        Route::put('/{id}', [CourseController::class, 'update']);
+//        Route::put('/{id}', [CourseController::class, 'update']);
     });
     // 获取学生列表
     Route::get('/students', [StudentController::class, 'list']);
