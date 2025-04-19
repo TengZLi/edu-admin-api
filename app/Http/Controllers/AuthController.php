@@ -124,6 +124,7 @@ class AuthController extends Controller
                 return ApiResponse::error(lang('当前密码不正确'));
             }
             $user->password = Hash::make($request->password);
+            $request->user()->token()->revoke();
         }
 
         // 更新用户名

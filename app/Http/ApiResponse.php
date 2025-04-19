@@ -30,15 +30,14 @@ class ApiResponse
      *
      * @param  string  $message
      * @param  int  $code
-     * @param  mixed  $data
      * @return JsonResponse
      */
-    public static function error(string $message = 'Error', int $code = self::ERROR_CODE, $data = null):JsonResponse
+    public static function error(string $message = 'Error', int $code = self::ERROR_CODE, $httpCode=200):JsonResponse
     {
         return response()->json([
             'code' => $code,
             'message' => $message,
-            'data' => $data,
-        ], 200);
+            'data' => null,
+        ], $httpCode);
     }
 }
