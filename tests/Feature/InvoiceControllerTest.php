@@ -21,11 +21,14 @@ class InvoiceControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $studentMaxTeacher = Student::query()
-            ->groupBy('teacher_id')->selectRaw('count(*) as student_count, teacher_id')
-            ->orderBy('student_count', 'desc')->first();
+        $studentMaxTeacher =  Student::query()
+            ->groupBy('teachers.id')
+            ->join('teachers','students.teacher_id','=','teachers.id')
+            ->where('teachers.status','=',Teacher::STATUS_NORMAL)
+            ->selectRaw('count(*) as student_count, teachers.*')
+            ->orderBy('student_count', 'desc')->first();;
         // 使用已有数据而不是每次创建新数据
-        $this->teacher = Teacher::where('role_type', Teacher::ROLE_TYPE_ORDINARY_TEACHER)->where('id', $studentMaxTeacher->teacher_id)->first() ?? Teacher::factory()->create();
+        $this->teacher = Teacher::where('role_type', Teacher::ROLE_TYPE_ORDINARY_TEACHER)->where('id', $studentMaxTeacher->id)->first() ?? Teacher::factory()->create();
         $this->student = Student::where('teacher_id', $this->teacher->id)->first();
 
         // 如果没有该教师的学生，则创建一个

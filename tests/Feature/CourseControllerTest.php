@@ -21,12 +21,15 @@ class CourseControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $studentMaxTeacher = Student::query()
-            ->groupBy('teacher_id')->selectRaw('count(*) as student_count, teacher_id')
-        ->orderBy('student_count', 'desc')->first();
+        $studentMaxTeacher =  Student::query()
+            ->groupBy('teachers.id')
+            ->join('teachers','students.teacher_id','=','teachers.id')
+            ->where('teachers.status','=',Teacher::STATUS_NORMAL)
+            ->selectRaw('count(*) as student_count, teachers.*')
+            ->orderBy('student_count', 'desc')->first();;
         // 使用已有数据而不是每次创建新数据
         $this->teacher = Teacher::query()
-                ->where('id', $studentMaxTeacher->teacher_id)->first() ?? Teacher::factory()->create();
+                ->where('id', $studentMaxTeacher->id)->first() ?? Teacher::factory()->create();
         $this->students = Student::take(3)->get();
 
 //        // 如果数据库中没有足够的学生，则创建
