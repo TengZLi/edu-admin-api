@@ -25,6 +25,7 @@ class StudentFactory extends Factory
     {
         return [
             'username' => fake()->unique()->userName(),
+            //名称随机4-20位
             'name' => fake()->name(),
             'status' => fake()->numberBetween(0,1),
             'teacher_id' => fake()->numberBetween(1,20),

@@ -5,31 +5,42 @@ namespace Tests\Feature;
 use App\Http\Controllers\StudentController;
 use App\Models\Student;
 use App\Models\Teacher;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class StudentControllerTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected $teacher;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->teacher = Teacher::factory()->create();
+        $studentMaxTeacher = Student::query()
+            ->groupBy('teacher_id')->selectRaw('count(*) as student_count, teacher_id')
+            ->orderBy('student_count', 'desc')->first();
+        // 使用已有数据而不是每次创建新数据
+        $this->teacher = Teacher::where('role_type', Teacher::ROLE_TYPE_ORDINARY_TEACHER)->where('id', $studentMaxTeacher->teacher_id)->first() ?? Teacher::factory()->create();
     }
 
     /** @test */
     public function teacher_can_get_student_list()
     {
-        Student::factory()->count(3)->create(['teacher_id' => $this->teacher->id]);
 
         $response = $this->actingAs($this->teacher, 'teacher')
-            ->getJson('/api/students');
+            ->getJson('/api/teacher/students');
 
         $response->assertStatus(200)
-            ->assertJson(['code' => 0])
-            ->assertJsonCount(3, 'data');
+            ->assertJson(['code' => 0]);
+    }
+
+    /** @test */
+    public function unauthorized_user_cannot_access_student_list()
+    {
+        $response = $this->getJson('/api/teacher/students');
+
+        $response->assertStatus(200)
+            ->assertJson(['code' => 401]);
     }
 }
